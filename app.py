@@ -69,7 +69,7 @@ def make_bar_plot(
     target=7.5,
     n_quarters=4
 ):
-    ax = df.iloc[:n_quarters].plot.bar(x="fiscal_period", y=col, color=color, rot=0)
+    ax = df.iloc[:n_quarters][::-1].plot.bar(x="fiscal_period", y=col, color=color, rot=0)
     ax.grid(axis='y', color='gray', linestyle='-', linewidth=0.5, alpha=0.2)
     ax.get_legend().remove()
     # Remove lines
@@ -85,10 +85,31 @@ def make_bar_plot(
         ax.bar_label(container, fmt='%.1f%%', label_type='edge')
     return ax
 
+def ranges_plot(current_price: float, buy_price: float, hold_price: float, sell_price: float, sell_upper_price: float):
+    ranges = pd.DataFrame(
+        [[buy_price, hold_price-buy_price], [hold_price, sell_price-hold_price], [sell_price, sell_upper_price]],
+        columns=["Low", "High"],
+        index=["Buy", "Hold", "Sell"],
+        
+    )
+    ax = ranges.plot.bar(stacked=True, color=[(0, 0, 0, 0), "grey"], 
+    rot=0)
+    ax.get_legend().remove()
+    ax.grid(axis='y', color='gray', linestyle='-', linewidth=0.5, alpha=0.2)
+    for container in ax.containers:
+        ax.bar_label(container, fmt='$%.1f', label_type='edge')
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.tick_params(length=0)
+    ax.axhline(current_price, color='black', linewidth=0.5)
+    ax.text(2, current_price, f"Current price (${current_price})", va='center', ha='center', backgroundcolor='white')
+    return ax
+
+
 ### App ###
 st.title("Stock Tracking Report")
 
-ticker = st.selectbox("Ticker", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"])
+ticker = st.selectbox("Ticker", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"], index=None)
 
 
 if not ticker:
@@ -106,27 +127,33 @@ with cols[2]:
     eps_target = st.number_input("EPS YoY (%) Target", 10)
 
 # Buy sell, hold range
+st.write("")
 st.write("### Buy, Sell, Hold Range")
-cols = st.columns(3)
+cols = st.columns(4)
 with cols[0]:
-    st.number_input("Buy lower price", 100)
+    buy = st.number_input("Buy lower price", 100)
 with cols[1]:
-    st.number_input("Hold lower price", 200)
+    hold = st.number_input("Hold lower price", 200)
 with cols[2]:
-    st.number_input("Sell lower price", 300)
+    sell_lower = st.number_input("Sell lower price", 300)
+with cols[3]:
+    sell_upper = st.number_input("Sell upper price", 350)
 
 # Comment
 st.write("### Recommendation")
 decision = st.selectbox("My recommendation", ["Buy", "Sell", "Hold"])
 
-st.text_input("Comments", placeholder="This is a hold because..") 
-
+comments = st.text_input("Comments", placeholder=f"This is a {decision.lower()} because..") 
 
 # Download
 download_container = st.container()
 
 st.divider()
 # Create report
+st.write("_Report preview_")
+st.write(f"#### {ticker} {df.iloc[0]['fiscal_period']} Report")
+st.write(f"Recommendation: **{decision}**")
+st.caption(comments)
 if df is not None:
     cols = st.columns(2)
     with cols[0]:
@@ -143,8 +170,13 @@ if df is not None:
         ax = make_bar_plot(df, "pre_tax_profit_margin", "Pre-tax Profit Margin (%)", color="olive", target=ptpm_target)
         st.pyplot(ax.figure)
 
+        # Buy, hold sell
+
+        ax= ranges_plot(300, buy, hold, sell_lower, sell_upper)
+        st.pyplot(ax.figure)
 else:
     st.write(f"No data found for {ticker}. ")
+st.divider()
 
 with download_container:
     st.download_button("Download report", df.to_csv(), "report.csv", "text/csv", type="primary")

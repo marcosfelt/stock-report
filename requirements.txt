@@ -1,0 +1,7 @@
+requests
+yfinance
+pandas
+matplotlib
+python-dotenv
+streamlit
+python-pptx

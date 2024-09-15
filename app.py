@@ -10,7 +10,8 @@ load_dotenv()
 POLYGON_API_KEY= os.getenv("POLYGON_API_KEY")
 
 ### Functions ###
-def get_financial_reports_polygon( ticker: str, limit: int = 50):
+@st.cache_data
+def get_financial_reports_polygon(ticker: str, limit: int = 50):
     """Get financial reports from Polygon.io"""
     res = requests.get(
         f"https://api.polygon.io/vX/reference/financials",
@@ -76,7 +77,7 @@ def make_bar_plot(
         spine.set_visible(False)
     ax.set_xlabel("")
     ax.set_title(title)
-    ax.axhline(target, color='red', linewidth=0.5, linestyle='--')
+    ax.axhline(target, color='red', linewidth=2.0, linestyle='--')
     ax.tick_params(length=0)
     ax.set_ylim()
     ax.set_yticklabels([f"{int(x)}%" for x in ax.get_yticks()])
@@ -85,28 +86,65 @@ def make_bar_plot(
     return ax
 
 ### App ###
-ticker = st.text_input("Enter a ticker", placeholder="AAPL")
+st.title("Stock Tracking Report")
+
+ticker = st.selectbox("Ticker", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"])
+
 
 if not ticker:
     st.stop()
 df = get_financials_df(ticker)
 
-# Revenue
+# Revenue, EPS and PTPM targets
+st.write("### Targets")
+cols = st.columns(3)
+with cols[0]:
+    revenue_target = st.number_input("Revenue YoY % Target", 10)
+with cols[1]:
+    ptpm_target = st.number_input("PTPM (%) Target", 10)
+with cols[2]:
+    eps_target = st.number_input("EPS YoY (%) Target", 10)
+
+# Buy sell, hold range
+st.write("### Buy, Sell, Hold Range")
+cols = st.columns(3)
+with cols[0]:
+    st.number_input("Buy lower price", 100)
+with cols[1]:
+    st.number_input("Hold lower price", 200)
+with cols[2]:
+    st.number_input("Sell lower price", 300)
+
+# Comment
+st.write("### Recommendation")
+decision = st.selectbox("My recommendation", ["Buy", "Sell", "Hold"])
+
+st.text_input("Comments", placeholder="This is a hold because..") 
+
+
+# Download
+download_container = st.container()
+
+st.divider()
+# Create report
 if df is not None:
     cols = st.columns(2)
     with cols[0]:
-        ax = make_bar_plot(df, "revenue_yoy_change", "Revenue YoY Change (%)", color="green", target=7.5)
+        # Revenue YoY
+        ax = make_bar_plot(df, "revenue_yoy_change", "Revenue YoY Change (%)", color="green", target=revenue_target)
         st.pyplot(ax.figure)
 
-        # EPS
-        ax = make_bar_plot(df, "eps_yoy_change", "EPS YoY Change (%)", color="blue", target=7.5)
+        # EPS YoY
+        ax = make_bar_plot(df, "eps_yoy_change", "EPS YoY Change (%)", color="blue", target=eps_target)
         st.pyplot(ax.figure)
 
-    # Pre-tax profit margin
     with cols[1]:
-        ax = make_bar_plot(df, "pre_tax_profit_margin", "Pre-tax Profit Margin (%)", color="olive", target=34)
+        # Pre-tax profit margin
+        ax = make_bar_plot(df, "pre_tax_profit_margin", "Pre-tax Profit Margin (%)", color="olive", target=ptpm_target)
         st.pyplot(ax.figure)
-
 
 else:
     st.write(f"No data found for {ticker}. ")
+
+with download_container:
+    st.download_button("Download report", df.to_csv(), "report.csv", "text/csv", type="primary")

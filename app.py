@@ -218,6 +218,10 @@ def make_ppt_report(
 
 
 ### App ###
+st.set_page_config(
+    page_title="Stock Tracking Report",
+    page_icon=":chart_with_upwards_trend:",
+)
 st.title("Stock Tracking Report")
 
 ticker = st.selectbox("Ticker", STOCKS, index=None)

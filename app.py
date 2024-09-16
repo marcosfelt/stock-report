@@ -150,7 +150,7 @@ def make_ranges_plot(
         f"Last close: (${current_price:.2f})",
         va="center",
         ha="center",
-        backgroundcolor="white",
+        backgroundcolor=(1, 1, 1, 0.7),
     )
     return ax
 
@@ -279,7 +279,7 @@ if df is not None:
         ax_revenue = make_bar_plot(
             df,
             "revenue_yoy_change",
-            "Revenue YoY Change (%)",
+            "Revenue YoY Growth Rate (%)",
             color="green",
             target=revenue_target,
         )
@@ -287,7 +287,7 @@ if df is not None:
 
         # EPS YoY
         ax_eps = make_bar_plot(
-            df, "eps_yoy_change", "EPS YoY Change (%)", color="blue", target=eps_target
+            df, "eps_yoy_change", "EPS YoY Growth Rate (%)", color="blue", target=eps_target
         )
         st.pyplot(ax_eps.figure)
 
@@ -304,6 +304,7 @@ if df is not None:
 
         # Buy, hold sell
         ax_ranges = make_ranges_plot(current_price, buy, hold, sell_lower, sell_upper)
+        ax_ranges.set_title('Buy, Hold, Sell Ranges')
         st.pyplot(ax_ranges.figure)
 else:
     st.write(f"No data found for {ticker}. ")

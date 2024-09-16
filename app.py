@@ -1,7 +1,6 @@
 import requests
 from datetime import datetime, timedelta
 import pandas as pd
-import matplotlib.pyplot as plt
 import os
 from dotenv import load_dotenv
 import streamlit as st
@@ -38,7 +37,7 @@ def get_last_close_price(ticker: str):
 def get_financial_reports_polygon(ticker: str, limit: int = 50):
     """Get financial reports from Polygon.io"""
     res = requests.get(
-        f"https://api.polygon.io/vX/reference/financials",
+        "https://api.polygon.io/vX/reference/financials",
         params={
             "apiKey": POLYGON_API_KEY, 
             "ticker": ticker, 

@@ -17,7 +17,7 @@ POLYGON_API_KEY= os.getenv("POLYGON_API_KEY")
 def get_last_close_price(ticker: str):
     """Get last closing price from Polygon.io"""
     # Get last weekday
-    today = datetime.now()
+    today = datetime.now() - timedelta(days = 1)
     while today.weekday() > 4:
         today -= timedelta(days = 1)
     date_str = today.strftime("%Y-%m-%d")

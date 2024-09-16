@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import os
 from dotenv import load_dotenv
 import streamlit as st
-import yfinance
 from pptx import Presentation
 from pptx.util import Inches
 from io import BytesIO
@@ -15,12 +14,24 @@ POLYGON_API_KEY= os.getenv("POLYGON_API_KEY")
 
 ### Functions ###
 @st.cache_data
-def get_current_price(ticker: str):
-    """Get current price from Yahoo Finance"""
-    data = yfinance.Ticker(ticker).history(period="1d")
-    if data is None or data.empty:
+def get_last_close_price(ticker: str):
+    """Get last closing price from Polygon.io"""
+    # Get last weekday
+    today = datetime.now()
+    while today.weekday() > 4:
+        today -= timedelta(days = 1)
+    date_str = today.strftime("%Y-%m-%d")
+    res = requests.get(
+        f"https://api.polygon.io/v1/open-close/{ticker}/{date_str}",
+        params={
+            "apiKey": POLYGON_API_KEY,
+        }
+    )
+    if res.status_code != 200:
+        st.warning(f"Failed to fetch data from Polygon ({res.status_code}): {res.text}")
         return
-    return data["Close"].iloc[-1]
+    data = res.json()
+    return data["close"]
 
 @st.cache_data
 def get_financial_reports_polygon(ticker: str, limit: int = 50):
@@ -114,7 +125,7 @@ def make_ranges_plot(current_price: float, buy_price: float, hold_price: float, 
         spine.set_visible(False)
     ax.tick_params(length=0)
     ax.axhline(current_price, color='black', linewidth=0.5)
-    ax.text(2, current_price, f"Current price (${current_price:.2f})", va='center', ha='center', backgroundcolor='white')
+    ax.text(2, current_price, f"Last close: (${current_price:.2f})", va='center', ha='center', backgroundcolor='white')
     return ax
 
 def make_ppt_report(ticker: str, financial_period: str,  decision: str, comments: str, ax_revenue, ax_eps, ax_ptpm, ax_ranges):
@@ -176,7 +187,7 @@ ticker = st.selectbox("Ticker", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"], index
 if not ticker:
     st.stop()
 df = get_financials_df(ticker)
-current_price = get_current_price(ticker)
+current_price = get_last_close_price(ticker)
 
 # Revenue, EPS and PTPM targets
 st.write("### Targets")

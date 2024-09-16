@@ -5,11 +5,23 @@ import matplotlib.pyplot as plt
 import os
 from dotenv import load_dotenv
 import streamlit as st
+import yfinance
+from pptx import Presentation
+from pptx.util import Inches
+from io import BytesIO
 
 load_dotenv()
 POLYGON_API_KEY= os.getenv("POLYGON_API_KEY")
 
 ### Functions ###
+@st.cache_data
+def get_current_price(ticker: str):
+    """Get current price from Yahoo Finance"""
+    data = yfinance.Ticker(ticker).history(period="1d")
+    if data is None or data.empty:
+        return
+    return data["Close"].iloc[-1]
+
 @st.cache_data
 def get_financial_reports_polygon(ticker: str, limit: int = 50):
     """Get financial reports from Polygon.io"""
@@ -85,7 +97,7 @@ def make_bar_plot(
         ax.bar_label(container, fmt='%.1f%%', label_type='edge')
     return ax
 
-def ranges_plot(current_price: float, buy_price: float, hold_price: float, sell_price: float, sell_upper_price: float):
+def make_ranges_plot(current_price: float, buy_price: float, hold_price: float, sell_price: float, sell_upper_price: float):
     ranges = pd.DataFrame(
         [[buy_price, hold_price-buy_price], [hold_price, sell_price-hold_price], [sell_price, sell_upper_price]],
         columns=["Low", "High"],
@@ -102,8 +114,57 @@ def ranges_plot(current_price: float, buy_price: float, hold_price: float, sell_
         spine.set_visible(False)
     ax.tick_params(length=0)
     ax.axhline(current_price, color='black', linewidth=0.5)
-    ax.text(2, current_price, f"Current price (${current_price})", va='center', ha='center', backgroundcolor='white')
+    ax.text(2, current_price, f"Current price (${current_price:.2f})", va='center', ha='center', backgroundcolor='white')
     return ax
+
+def make_ppt_report(ticker: str, financial_period: str,  decision: str, comments: str, ax_revenue, ax_eps, ax_ptpm, ax_ranges):
+    prs = Presentation()
+    slide_layout = prs.slide_layouts[5]
+    slide = prs.slides.add_slide(slide_layout)
+    title = slide.shapes.title
+    title.text = f"{ticker} {financial_period} Financial Report"
+    title.text_frame.paragraphs[0].font.size = Inches(0.3)
+    # Left justify title
+    title.text_frame.paragraphs[0].alignment = 1
+    # Move title up
+    title.top = Inches(0.15)
+    title.width = Inches(6)
+    title.left = Inches(0.1)
+
+    left = Inches(1)
+    top = Inches(1.5)
+    width = Inches(4)
+    height = Inches(3)
+
+    # Add recommendation
+    text_box = slide.shapes.add_textbox(Inches(0.1), Inches(0.6), width * 2, Inches(0.5)).text_frame
+    text_box.text = f"Recommendation: {decision}"
+    text_box.paragraphs[0].font.size = Inches(0.15)
+
+    # Add comments
+    text_box = slide.shapes.add_textbox(Inches(0.1), Inches(1.0), width * 2, Inches(0.5)).text_frame
+    text_box.text = comments
+    text_box.paragraphs[0].font.size = Inches(0.1)
+
+
+    img_stream = BytesIO()
+    ax_revenue.figure.savefig(img_stream, format='png')
+    slide.shapes.add_picture(img_stream, left, top, width, height)
+
+    img_stream = BytesIO()
+    ax_eps.figure.savefig(img_stream, format='png')
+    slide.shapes.add_picture(img_stream, left + width, top, width, height)
+
+    img_stream = BytesIO()
+    ax_ptpm.figure.savefig(img_stream, format='png')
+    slide.shapes.add_picture(img_stream, left, top + height, width, height)
+
+    img_stream = BytesIO()
+    ax_ranges.figure.savefig(img_stream, format='png')
+    slide.shapes.add_picture(img_stream, left + width, top + height, width, height)
+    ppt_buffer = BytesIO()
+    prs.save(ppt_buffer)
+    return ppt_buffer
 
 
 ### App ###
@@ -115,6 +176,7 @@ ticker = st.selectbox("Ticker", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"], index
 if not ticker:
     st.stop()
 df = get_financials_df(ticker)
+current_price = get_current_price(ticker)
 
 # Revenue, EPS and PTPM targets
 st.write("### Targets")
@@ -143,7 +205,7 @@ with cols[3]:
 st.write("### Recommendation")
 decision = st.selectbox("My recommendation", ["Buy", "Sell", "Hold"])
 
-comments = st.text_input("Comments", placeholder=f"This is a {decision.lower()} because..") 
+comments = st.text_input("Comments", placeholder=f"This is a {decision.lower()} because...") 
 
 # Download
 download_container = st.container()
@@ -158,25 +220,35 @@ if df is not None:
     cols = st.columns(2)
     with cols[0]:
         # Revenue YoY
-        ax = make_bar_plot(df, "revenue_yoy_change", "Revenue YoY Change (%)", color="green", target=revenue_target)
-        st.pyplot(ax.figure)
+        ax_revenue = make_bar_plot(df, "revenue_yoy_change", "Revenue YoY Change (%)", color="green", target=revenue_target)
+        st.pyplot(ax_revenue.figure)
 
         # EPS YoY
-        ax = make_bar_plot(df, "eps_yoy_change", "EPS YoY Change (%)", color="blue", target=eps_target)
-        st.pyplot(ax.figure)
+        ax_eps = make_bar_plot(df, "eps_yoy_change", "EPS YoY Change (%)", color="blue", target=eps_target)
+        st.pyplot(ax_eps.figure)
 
     with cols[1]:
         # Pre-tax profit margin
-        ax = make_bar_plot(df, "pre_tax_profit_margin", "Pre-tax Profit Margin (%)", color="olive", target=ptpm_target)
-        st.pyplot(ax.figure)
+        ax_ptpm = make_bar_plot(df, "pre_tax_profit_margin", "Pre-tax Profit Margin (%)", color="olive", target=ptpm_target)
+        st.pyplot(ax_ptpm.figure)
 
         # Buy, hold sell
-
-        ax= ranges_plot(300, buy, hold, sell_lower, sell_upper)
-        st.pyplot(ax.figure)
+        ax_ranges = make_ranges_plot(current_price, buy, hold, sell_lower, sell_upper)
+        st.pyplot(ax_ranges.figure)
 else:
     st.write(f"No data found for {ticker}. ")
 st.divider()
 
 with download_container:
-    st.download_button("Download report", df.to_csv(), "report.csv", "text/csv", type="primary")
+    report_buffer = make_ppt_report(
+        ticker=ticker, 
+        decision=decision, 
+        financial_period=df.iloc[0]['fiscal_period'],
+        comments=comments, 
+        ax_revenue=ax_revenue, 
+        ax_eps=ax_eps, 
+        ax_ptpm=ax_ptpm,
+         ax_ranges= ax_ranges
+    )
+
+    st.download_button("Download report", report_buffer, "StockReport.pptx", "pptx", type="primary")

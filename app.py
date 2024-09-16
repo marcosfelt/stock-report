@@ -11,6 +11,7 @@ from io import BytesIO
 
 load_dotenv()
 POLYGON_API_KEY= os.getenv("POLYGON_API_KEY")
+STOCKS = ["AAPL", "AL", "AX", "DAR", "INMD", "META", "MSFT", "NVDA", "PAYC", "SCHW", "SWKS", "TSCO", "V", "VRTX"]
 
 ### Functions ###
 @st.cache_data
@@ -181,7 +182,7 @@ def make_ppt_report(ticker: str, financial_period: str,  decision: str, comments
 ### App ###
 st.title("Stock Tracking Report")
 
-ticker = st.selectbox("Ticker", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"], index=None)
+ticker = st.selectbox("Ticker", STOCKS, index=None)
 
 
 if not ticker:

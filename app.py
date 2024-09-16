@@ -236,24 +236,24 @@ current_price = get_last_close_price(ticker)
 st.write("### Targets")
 cols = st.columns(3)
 with cols[0]:
-    revenue_target = st.number_input("Revenue YoY % Target", 10)
+    revenue_target = st.number_input("Revenue YoY % Target", 0, value=10)
 with cols[1]:
-    ptpm_target = st.number_input("PTPM (%) Target", 10)
+    ptpm_target = st.number_input("PTPM (%) Target", 0, value=10)
 with cols[2]:
-    eps_target = st.number_input("EPS YoY (%) Target", 10)
+    eps_target = st.number_input("EPS YoY (%) Target", 0, value=10)
 
 # Buy sell, hold range
 st.write("")
 st.write("### Buy, Sell, Hold Range")
 cols = st.columns(4)
 with cols[0]:
-    buy = st.number_input("Buy lower price", 100)
+    buy = st.number_input("Buy lower price", 0, value=100)
 with cols[1]:
-    hold = st.number_input("Hold lower price", 200)
+    hold = st.number_input("Hold lower price", 0, value=200)
 with cols[2]:
-    sell_lower = st.number_input("Sell lower price", 300)
+    sell_lower = st.number_input("Sell lower price", 0, value=300)
 with cols[3]:
-    sell_upper = st.number_input("Sell upper price", 350)
+    sell_upper = st.number_input("Sell upper price", 0, value=350)
 
 # Comment
 st.write("### Recommendation")

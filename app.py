@@ -1,12 +1,13 @@
-import requests
-from datetime import datetime, timedelta
-import pandas as pd
 import os
-from dotenv import load_dotenv
+from datetime import datetime, timedelta
+from io import BytesIO
+
+import pandas as pd
+import requests
 import streamlit as st
+from dotenv import load_dotenv
 from pptx import Presentation
 from pptx.util import Inches
-from io import BytesIO
 
 load_dotenv()
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
@@ -26,6 +27,7 @@ STOCKS = [
     "V",
     "VRTX",
 ]
+
 
 ### Functions ###
 @st.cache_data
@@ -130,7 +132,7 @@ def make_ranges_plot(
         [
             [buy_price, hold_price - buy_price],
             [hold_price, sell_price - hold_price],
-            [sell_price, sell_upper_price],
+            [sell_price, sell_upper_price - sell_price],
         ],
         columns=["Low", "High"],
         index=["Buy", "Hold", "Sell"],
@@ -287,7 +289,11 @@ if df is not None:
 
         # EPS YoY
         ax_eps = make_bar_plot(
-            df, "eps_yoy_change", "EPS YoY Growth Rate (%)", color="blue", target=eps_target
+            df,
+            "eps_yoy_change",
+            "EPS YoY Growth Rate (%)",
+            color="blue",
+            target=eps_target,
         )
         st.pyplot(ax_eps.figure)
 
@@ -304,7 +310,7 @@ if df is not None:
 
         # Buy, hold sell
         ax_ranges = make_ranges_plot(current_price, buy, hold, sell_lower, sell_upper)
-        ax_ranges.set_title('Buy, Hold, Sell Ranges')
+        ax_ranges.set_title("Buy, Hold, Sell Ranges")
         st.pyplot(ax_ranges.figure)
 else:
     st.write(f"No data found for {ticker}. ")

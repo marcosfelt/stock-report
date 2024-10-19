@@ -159,6 +159,7 @@ def make_ranges_plot(
 
 def make_ppt_report(
     ticker: str,
+    author: str,
     financial_period: str,
     decision: str,
     comments: str,
@@ -179,6 +180,14 @@ def make_ppt_report(
     title.top = Inches(0.15)
     title.width = Inches(6)
     title.left = Inches(0.1)
+
+    # Add author
+    if author:
+        text_box = slide.shapes.add_textbox(
+            Inches(0.1), Inches(0.3), Inches(2), Inches(0.2)
+        ).text_frame
+        text_box.text = f"Report created by: {author}"
+        text_box.paragraphs[0].font.size = Inches(0.15)
 
     left = Inches(1)
     top = Inches(1.5)
@@ -231,6 +240,7 @@ input_panel, report_panel = st.columns([2, 1])
 
 with input_panel:
     ticker = st.selectbox("Ticker", STOCKS, index=None)
+    author = st.text_input("What is your name?")
     if not ticker:
         st.stop()
     df = get_financials_df(ticker)
@@ -289,7 +299,7 @@ with input_panel:
     st.write("### 3. Recommendation")
     decision = st.selectbox("My recommendation", ["Buy", "Sell", "Hold"])
 
-    comments = st.text_input(
+    comments = st.text_area(
         "Comments", placeholder=f"This is a {decision.lower()} because..."
     )
 
@@ -299,6 +309,8 @@ with report_panel.container(border=True):
     # Create report
     st.write("_Report preview_")
     st.write(f"#### {ticker} {df.iloc[0]['fiscal_period']} Report")
+    if author:
+        st.write(f"Report created by: **{author}**")
     st.write(f"Recommendation: **{decision}**")
     st.caption(comments)
     if df is not None:
@@ -343,6 +355,7 @@ with report_panel.container(border=True):
 with download_container:
     report_buffer = make_ppt_report(
         ticker=ticker,
+        author=author,
         decision=decision,
         financial_period=df.iloc[0]["fiscal_period"],
         comments=comments,

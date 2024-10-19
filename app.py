@@ -12,20 +12,20 @@ from pptx.util import Inches
 load_dotenv()
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
 STOCKS = [
-    "AAPL",
-    "AL",
-    "AX",
-    "DAR",
-    "INMD",
-    "META",
+    # "AAPL",
+    # "AL",
+    # "AX",
+    # "DAR",
+    # "INMD",
+    # "META",
     "MSFT",
-    "NVDA",
-    "PAYC",
-    "SCHW",
-    "SWKS",
-    "TSCO",
+    # "NVDA",
+    # "PAYC",
+    # "SCHW",
+    # "SWKS",
+    # "TSCO",
     "V",
-    "VRTX",
+    # "VRTX",
 ]
 
 
@@ -198,6 +198,7 @@ def make_ppt_report(
     ).text_frame
     text_box.text = comments
     text_box.paragraphs[0].font.size = Inches(0.1)
+    text_box.word_wrap = True
 
     img_stream = BytesIO()
     ax_revenue.figure.savefig(img_stream, format="png")

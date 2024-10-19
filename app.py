@@ -224,80 +224,84 @@ def make_ppt_report(
 st.set_page_config(
     page_title="Stock Tracking Report",
     page_icon=":chart_with_upwards_trend:",
+    layout="wide",
 )
 st.title("Stock Tracking Report")
+input_panel, report_panel = st.columns([2, 1])
 
-ticker = st.selectbox("Ticker", STOCKS, index=None)
+with input_panel:
+    ticker = st.selectbox("Ticker", STOCKS, index=None)
+    if not ticker:
+        st.stop()
+    df = get_financials_df(ticker)
+    current_price = get_last_close_price(ticker)
 
-if not ticker:
-    st.stop()
-df = get_financials_df(ticker)
-current_price = get_last_close_price(ticker)
-
-# Revenue, EPS and PTPM targets
-st.write("### 1. Targets")
-cols = st.columns(3)
-with cols[0]:
-    revenue_target = st.number_input("Revenue YoY % Target", 0, value=10)
-with cols[1]:
-    ptpm_target = st.number_input("PTPM (%) Target", 0, value=10)
-with cols[2]:
-    eps_target = st.number_input("EPS YoY (%) Target", 0, value=10)
-
-# Buy sell, hold range
-st.write("")
-st.write("### 2. Buy, Sell, Hold Range")
-ranges = {"buy": [], "hold": [], "sell": []}
-
-
-st.write("**Buy Range**")
-buy_cols = st.columns(4)
-with buy_cols[0]:
-    buy_lower = st.number_input("Lower", 0, value=100, key="buy_lower")
-with buy_cols[1]:
-    buy_upper = st.number_input("Upper", 0, value=150, key="buy_upper")
-
-st.write("")
-st.write("**Hold Range**")
-hold_cols = st.columns(4)
-with hold_cols[0]:
-    hold_lower = st.number_input(
-        "Lower (equals buy upper)", 0, value=buy_upper, key="hold_lower", disabled=True
-    )
-with hold_cols[1]:
-    hold_upper = st.number_input("Upper", 0, value=200, key="hold_upper")
-
-st.write("")
-st.write("**Sell Range**")
-sell_cols = st.columns(4)
-with sell_cols[0]:
-    sell_lower = st.number_input(
-        "Lowe (equals hold upper)", 0, value=hold_upper, key="sell_lower", disabled=True
-    )
-with sell_cols[1]:
-    sell_upper = st.number_input("Upper", 0, value=250, key="sell_upper")
-
-
-# Comment
-st.write("### 3. Recommendation")
-decision = st.selectbox("My recommendation", ["Buy", "Sell", "Hold"])
-
-comments = st.text_input(
-    "Comments", placeholder=f"This is a {decision.lower()} because..."
-)
-
-# Download
-download_container = st.container()
-
-st.divider()
-# Create report
-st.write("_Report preview_")
-st.write(f"#### {ticker} {df.iloc[0]['fiscal_period']} Report")
-st.write(f"Recommendation: **{decision}**")
-st.caption(comments)
-if df is not None:
-    cols = st.columns(2)
+    # Revenue, EPS and PTPM targets
+    st.write("### 1. Targets")
+    cols = st.columns(3)
     with cols[0]:
+        revenue_target = st.number_input("Revenue YoY % Target", 0, value=10)
+    with cols[1]:
+        ptpm_target = st.number_input("PTPM (%) Target", 0, value=10)
+    with cols[2]:
+        eps_target = st.number_input("EPS YoY (%) Target", 0, value=10)
+
+    # Buy sell, hold range
+    st.write("")
+    st.write("### 2. Buy, Sell, Hold Range")
+
+    st.write("**Buy Range**")
+    buy_cols = st.columns(4)
+    with buy_cols[0]:
+        buy_lower = st.number_input("Lower", 0, value=100, key="buy_lower")
+    with buy_cols[1]:
+        buy_upper = st.number_input("Upper", 0, value=150, key="buy_upper")
+
+    st.write("")
+    st.write("**Hold Range**")
+    hold_cols = st.columns(4)
+    with hold_cols[0]:
+        hold_lower = st.number_input(
+            "Lower",
+            0,
+            value=buy_upper,
+            key="hold_lower",
+            disabled=True,
+        )
+    with hold_cols[1]:
+        hold_upper = st.number_input("Upper", 0, value=200, key="hold_upper")
+
+    st.write("")
+    st.write("**Sell Range**")
+    sell_cols = st.columns(4)
+    with sell_cols[0]:
+        sell_lower = st.number_input(
+            "Lower",
+            0,
+            value=hold_upper,
+            key="sell_lower",
+            disabled=True,
+        )
+    with sell_cols[1]:
+        sell_upper = st.number_input("Upper", 0, value=250, key="sell_upper")
+
+    # Comment
+    st.write("### 3. Recommendation")
+    decision = st.selectbox("My recommendation", ["Buy", "Sell", "Hold"])
+
+    comments = st.text_input(
+        "Comments", placeholder=f"This is a {decision.lower()} because..."
+    )
+
+    download_container = st.container()
+
+with report_panel.container(border=True):
+    # Create report
+    st.write("_Report preview_")
+    st.write(f"#### {ticker} {df.iloc[0]['fiscal_period']} Report")
+    st.write(f"Recommendation: **{decision}**")
+    st.caption(comments)
+    if df is not None:
         # Revenue YoY
         ax_revenue = make_bar_plot(
             df,
@@ -318,7 +322,6 @@ if df is not None:
         )
         st.pyplot(ax_eps.figure)
 
-    with cols[1]:
         # Pre-tax profit margin
         ax_ptpm = make_bar_plot(
             df,
@@ -335,10 +338,8 @@ if df is not None:
         )
         ax_ranges.set_title("Buy, Hold, Sell Ranges")
         st.pyplot(ax_ranges.figure)
-else:
-    st.write(f"No data found for {ticker}. ")
-st.divider()
-
+    else:
+        st.write(f"No data found for {ticker}. ")
 with download_container:
     report_buffer = make_ppt_report(
         ticker=ticker,

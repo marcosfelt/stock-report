@@ -244,7 +244,6 @@ input_panel, report_panel = st.columns([2, 1])
 
 with input_panel:
     ticker = st.selectbox("Ticker", STOCKS, index=None)
-    author = st.text_input("What is your name?")
     if not ticker:
         st.stop()
     df = get_financials_df(ticker)
@@ -306,6 +305,7 @@ with input_panel:
     comments = st.text_area(
         "Comments", placeholder=f"This is a {decision.lower()} because..."
     )
+    author = st.text_input("What is your name?")
 
     download_container = st.container()
 

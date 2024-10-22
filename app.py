@@ -11,6 +11,7 @@ from pptx.util import Inches
 
 load_dotenv()
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
+FMP_API_KEY = os.getenv("FMP_API_KEY")
 STOCKS = [
     # "AAPL",
     # "AL",
@@ -67,34 +68,39 @@ def get_financial_reports_polygon(ticker: str, limit: int = 50):
     return data["results"]
 
 
-def extract_quarter_financials(quarter: dict):
-    q = quarter["fiscal_period"]
-    yr = quarter["fiscal_year"]
-    eps = quarter["financials"]["income_statement"]["basic_earnings_per_share"]["value"]
-    revenue = quarter["financials"]["income_statement"]["revenues"]["value"]
-    income = quarter["financials"]["income_statement"][
-        "income_loss_from_continuing_operations_before_tax"
-    ]["value"]
-    return {"quarter": q, "year": yr, "eps": eps, "revenue": revenue, "income": income}
+@st.cache_data
+def get_financial_reports_fmp(ticker: str, limit: int = 50):
+    """Get financial reports from Polygon.io"""
+    res = requests.get(
+        f"https://financialmodelingprep.com/api/v3/income-statement/{ticker}",
+        params={"apikey": FMP_API_KEY, "period": "quarter"},
+    )
+    if res.status_code != 200:
+        st.warning(f"Failed to fetch data from FMP ({res.status_code}): {res.text}")
+        return
+    data = res.json()
+    return data
 
 
 def get_financials_df(ticker: str, limit: int = 50) -> pd.DataFrame:
-    reports = get_financial_reports_polygon(ticker, limit)
-    if reports is None:
-        return
-    quarterly_financials = [
-        extract_quarter_financials(q)
-        for q in reports
-        if q["fiscal_period"] in ["Q1", "Q2", "Q3", "Q4"]
-    ]
+    quarterly_financials = get_financial_reports_fmp(ticker, limit)
     df = pd.DataFrame(quarterly_financials)
+    df = df[["calendarYear", "period", "eps", "revenue", "incomeBeforeTax"]]
+    df = df.rename(
+        columns={
+            "calendarYear": "year",
+            "period": "quarter",
+            "incomeBeforeTax": "income",
+        }
+    )
+    df = df.sort_values(["year", "quarter"], ascending=False)
     df = df.set_index(["year", "quarter"])
     yoy_change = (df - df.shift(-4)) / df.shift(-4) * 100
     yoy_change = yoy_change.dropna().rename(columns=lambda x: f"{x}_yoy_change")
     df = pd.concat([df, yoy_change], axis=1)
-    df["fiscal_period"] = df.index.get_level_values(
-        "quarter"
-    ) + df.index.get_level_values("year").astype(str)
+    df["period"] = df.index.get_level_values("quarter") + df.index.get_level_values(
+        "year"
+    ).astype(str)
     df["pre_tax_profit_margin"] = df["income"] / df["revenue"] * 100
     return df
 
@@ -102,9 +108,7 @@ def get_financials_df(ticker: str, limit: int = 50) -> pd.DataFrame:
 def make_bar_plot(
     df: pd.DataFrame, col: str, title: str, color="green", target=7.5, n_quarters=4
 ):
-    ax = df.iloc[:n_quarters][::-1].plot.bar(
-        x="fiscal_period", y=col, color=color, rot=0
-    )
+    ax = df.iloc[:n_quarters][::-1].plot.bar(x="period", y=col, color=color, rot=0)
     ax.grid(axis="y", color="gray", linestyle="-", linewidth=0.5, alpha=0.2)
     ax.get_legend().remove()
     # Remove lines
@@ -308,7 +312,7 @@ with input_panel:
 with report_panel.container(border=True):
     # Create report
     st.write("_Report preview_")
-    st.write(f"#### {ticker} {df.iloc[0]['fiscal_period']} Report")
+    st.write(f"#### {ticker} {df.iloc[0]['period']} Report")
     if author:
         st.write(f"Report created by: **{author}**")
     st.write(f"Recommendation: **{decision}**")
@@ -357,7 +361,7 @@ with download_container:
         ticker=ticker,
         author=author,
         decision=decision,
-        financial_period=df.iloc[0]["fiscal_period"],
+        financial_period=df.iloc[0]["period"],
         comments=comments,
         ax_revenue=ax_revenue,
         ax_eps=ax_eps,

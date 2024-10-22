@@ -1,5 +1,4 @@
 import os
-from datetime import datetime, timedelta
 from io import BytesIO
 
 import pandas as pd
@@ -10,7 +9,6 @@ from pptx import Presentation
 from pptx.util import Inches
 
 load_dotenv()
-POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
 FMP_API_KEY = os.getenv("FMP_API_KEY")
 STOCKS = [
     # "AAPL",
@@ -34,38 +32,16 @@ STOCKS = [
 @st.cache_data
 def get_last_close_price(ticker: str):
     """Get last closing price from Polygon.io"""
-    # Get last weekday
-    today = datetime.now() - timedelta(days=1)
-    while today.weekday() > 4:
-        today -= timedelta(days=1)
-    date_str = today.strftime("%Y-%m-%d")
+
     res = requests.get(
-        f"https://api.polygon.io/v1/open-close/{ticker}/{date_str}",
-        params={
-            "apiKey": POLYGON_API_KEY,
-        },
+        f"https://financialmodelingprep.com/api/v3/quote/{ticker}",
+        params={"apikey": FMP_API_KEY},
     )
     if res.status_code != 200:
         st.warning(f"Failed to fetch data from Polygon ({res.status_code}): {res.text}")
         return
     data = res.json()
-    return data["close"]
-
-
-@st.cache_data
-def get_financial_reports_polygon(ticker: str, limit: int = 50):
-    """Get financial reports from Polygon.io"""
-    res = requests.get(
-        "https://api.polygon.io/vX/reference/financials",
-        params={"apiKey": POLYGON_API_KEY, "ticker": ticker, "limit": limit},
-    )
-    if res.status_code != 200:
-        st.warning(f"Failed to fetch data from Polygon ({res.status_code}): {res.text}")
-        return
-    data = res.json()
-    if "results" not in data:
-        return
-    return data["results"]
+    return data[0]["previousClose"]
 
 
 @st.cache_data

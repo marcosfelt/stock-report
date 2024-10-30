@@ -61,7 +61,7 @@ def get_financial_reports_fmp(ticker: str):
 def get_financials_df(ticker: str) -> pd.DataFrame:
     quarterly_financials = get_financial_reports_fmp(ticker)
     st.write(quarterly_financials)
-    # df = pd.DataFrame(quarterly_financials)
+    df = pd.DataFrame(quarterly_financials)
     # st.write(df)
     df = df[["calendarYear", "period", "epsdiluted", "revenue", "incomeBeforeTax"]]
     df = df.rename(

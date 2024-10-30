@@ -45,7 +45,7 @@ def get_last_close_price(ticker: str):
 
 
 @st.cache_data
-def get_financial_reports_fmp(ticker: str, limit: int = 50):
+def get_financial_reports_fmp(ticker: str):
     """Get financial reports from Polygon.io"""
     res = requests.get(
         f"https://financialmodelingprep.com/api/v3/income-statement/{ticker}",
@@ -58,15 +58,18 @@ def get_financial_reports_fmp(ticker: str, limit: int = 50):
     return data
 
 
-def get_financials_df(ticker: str, limit: int = 50) -> pd.DataFrame:
-    quarterly_financials = get_financial_reports_fmp(ticker, limit)
-    df = pd.DataFrame(quarterly_financials)
-    df = df[["calendarYear", "period", "eps", "revenue", "incomeBeforeTax"]]
+def get_financials_df(ticker: str) -> pd.DataFrame:
+    quarterly_financials = get_financial_reports_fmp(ticker)
+    st.write(quarterly_financials)
+    # df = pd.DataFrame(quarterly_financials)
+    # st.write(df)
+    df = df[["calendarYear", "period", "epsdiluted", "revenue", "incomeBeforeTax"]]
     df = df.rename(
         columns={
             "calendarYear": "year",
             "period": "quarter",
             "incomeBeforeTax": "income",
+            "epsdiluted": "eps",
         }
     )
     df = df.sort_values(["year", "quarter"], ascending=False)

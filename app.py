@@ -18,7 +18,7 @@ STOCKS = [
     # "INMD",
     # "META",
     "MSFT",
-    # "NVDA",
+    "NVDA",
     # "PAYC",
     # "SCHW",
     # "SWKS",

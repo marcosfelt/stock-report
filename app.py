@@ -70,6 +70,7 @@ def get_financials_df(ticker: str) -> pd.DataFrame:
         }
     )
     df = df[["year", "quarter", "revenue", "income", "eps"]]
+    df = df.loc[:,~df.columns.duplicated()]
     df = df.sort_values(["year", "quarter"], ascending=False)
     df = df.set_index(["year", "quarter"])
     yoy_change = (df - df.shift(-4)) / df.shift(-4) * 100

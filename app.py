@@ -16,7 +16,7 @@ STOCKS = [
     # "AX",
     # "DAR",
     # "INMD",
-    # "META",
+    "META",
     "MSFT",
     "NVDA",
     # "PAYC",

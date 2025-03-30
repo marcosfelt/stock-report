@@ -12,20 +12,23 @@ import matplotlib.pyplot as plt
 load_dotenv()
 FMP_API_KEY = os.getenv("FMP_API_KEY")
 STOCKS = [
-    # "AAPL",
-    # "AL",
-    # "AX",
-    # "DAR",
-    # "INMD",
+    "AAPL",
+    "AL",
+    "AX",
+    "DAR",
+    "INMD",
     "META",
     "MSFT",
+    "NICE",
     "NVDA",
-    # "PAYC",
-    # "SCHW",
-    # "SWKS",
-    # "TSCO",
-    # "V",
-    # "VRTX",
+    "NVMI",
+    "PAYC",
+    "SCHW",
+    "SWKS",
+    "TREX",
+    "TSCO",
+    "V",
+    "VRTX",
 ]
 
 

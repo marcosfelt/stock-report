@@ -7,6 +7,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from pptx import Presentation
 from pptx.util import Inches
+import matplotlib.pyplot as plt
 
 load_dotenv()
 FMP_API_KEY = os.getenv("FMP_API_KEY")
@@ -84,9 +85,9 @@ def get_financials_df(ticker: str) -> pd.DataFrame:
 
 
 def make_bar_plot(
-    df: pd.DataFrame, col: str, title: str, color="green", target=7.5, n_quarters=4
+    df: pd.DataFrame, col: str, title: str, color="green", target=7.5, n_quarters=4, ax=None
 ):
-    ax = df.iloc[:n_quarters][::-1].plot.bar(x="period", y=col, color=color, rot=0)
+    ax = df.iloc[:n_quarters][::-1].plot.bar(x="period", y=col, color=color, rot=0, ax=ax)
     ax.grid(axis="y", color="gray", linestyle="-", linewidth=0.5, alpha=0.2)
     ax.get_legend().remove()
     # Remove lines
@@ -109,6 +110,7 @@ def make_ranges_plot(
     hold_lower_price: float,
     sell_lower_price: float,
     sell_upper_price: float,
+    ax=None
 ):
     ranges = pd.DataFrame(
         [
@@ -119,7 +121,7 @@ def make_ranges_plot(
         columns=["Low", "High"],
         index=["Buy", "Hold", "Sell"],
     )
-    ax = ranges.plot.bar(stacked=True, color=[(0, 0, 0, 0), "grey"], rot=0)
+    ax = ranges.plot.bar(stacked=True, color=[(0, 0, 0, 0), "grey"], rot=0, ax=ax)
     ax.get_legend().remove()
     ax.grid(axis="y", color="gray", linestyle="-", linewidth=0.5, alpha=0.2)
     for container in ax.containers:
@@ -210,6 +212,87 @@ def make_ppt_report(
     prs.save(ppt_buffer)
     return ppt_buffer
 
+def make_plots(
+    df: pd.DataFrame,
+    ticker: str,
+    current_price: float,
+    revenue_target: float,
+    ptpm_target: float,
+    eps_target: float,
+    buy: list[float],
+    hold: list[float],
+    sell: list[float],
+    make_multipanel: bool = True,
+    author: str=None,
+    decision: str=None,
+    financial_period: str=None,
+    comments: str=None,
+):
+    ax = None
+    if make_multipanel:
+        fig, axes = plt.subplots(3,2, figsize=(10,10), height_ratios=(1,5,5))
+        title = f"{ticker} {financial_period} Financial Report"
+        fig.suptitle(title)
+        axes[0,0].axis("off")
+        axes[0,1].axis("off")
+        subtitle = f"Report created by {author} | Recommendation: {decision}"
+        fig.text(0.06, 0.9, subtitle, fontsize=12)
+        fig.text(0.06, 0.85, comments, fontsize=10)
+        fig.subplots_adjust(wspace=0.3, hspace=0.3)
+
+    if make_multipanel:
+        ax = axes[1,0]
+    ax_revenue = make_bar_plot(
+        df,
+        "revenue_yoy_change",
+        "Revenue YoY Growth Rate (%)",
+        color="green",
+        target=revenue_target,
+        ax=ax
+    )
+    if not make_multipanel:
+        st.pyplot(ax_revenue.figure)
+
+    # EPS YoY
+    if make_multipanel:
+        ax = axes[1,1]
+    ax_eps = make_bar_plot(
+        df,
+        "eps_yoy_change",
+        "EPS YoY Growth Rate (%)",
+        color="blue",
+        target=eps_target,
+        ax=ax
+    )
+    if not make_multipanel:
+        st.pyplot(ax_eps.figure)
+
+    # Pre-tax profit margin
+    if make_multipanel:
+        ax = axes[2,0]
+    ax_ptpm = make_bar_plot(
+        df,
+        "pre_tax_profit_margin",
+        "Pre-tax Profit Margin (%)",
+        color="olive",
+        target=ptpm_target,
+        ax=ax
+    )
+    if not make_multipanel:
+        st.pyplot(ax_ptpm.figure)
+
+    # Buy, hold sell
+    if make_multipanel:
+        ax = axes[2,1]
+    ax_ranges = make_ranges_plot(
+        current_price, buy[0], hold[0], sell[0], sell[1],ax=ax
+    )
+    ax_ranges.set_title("Buy, Hold, Sell Ranges")
+    if not make_multipanel:
+        st.pyplot(ax_ranges.figure)
+    if make_multipanel:
+        return fig
+
 
 ### App ###
 st.set_page_config(
@@ -296,57 +379,52 @@ with report_panel.container(border=True):
     st.write(f"Recommendation: **{decision}**")
     st.caption(comments)
     if df is not None:
-        # Revenue YoY
-        ax_revenue = make_bar_plot(
+        make_plots(
             df,
-            "revenue_yoy_change",
-            "Revenue YoY Growth Rate (%)",
-            color="green",
-            target=revenue_target,
+            ticker=ticker,
+            current_price=current_price,
+            revenue_target=revenue_target,
+            ptpm_target=ptpm_target,
+            eps_target=eps_target,
+            buy=[buy_lower, buy_upper],
+            hold=[hold_lower, hold_upper],
+            sell=[sell_lower,sell_upper],
+            make_multipanel=False
         )
-        st.pyplot(ax_revenue.figure)
-
-        # EPS YoY
-        ax_eps = make_bar_plot(
-            df,
-            "eps_yoy_change",
-            "EPS YoY Growth Rate (%)",
-            color="blue",
-            target=eps_target,
-        )
-        st.pyplot(ax_eps.figure)
-
-        # Pre-tax profit margin
-        ax_ptpm = make_bar_plot(
-            df,
-            "pre_tax_profit_margin",
-            "Pre-tax Profit Margin (%)",
-            color="olive",
-            target=ptpm_target,
-        )
-        st.pyplot(ax_ptpm.figure)
-
-        # Buy, hold sell
-        ax_ranges = make_ranges_plot(
-            current_price, buy_lower, hold_lower, sell_lower, sell_upper
-        )
-        ax_ranges.set_title("Buy, Hold, Sell Ranges")
-        st.pyplot(ax_ranges.figure)
     else:
         st.write(f"No data found for {ticker}. ")
 with download_container:
-    report_buffer = make_ppt_report(
+    # report_buffer = make_ppt_report(
+    #     ticker=ticker,
+    #     author=author,
+    #     decision=decision,
+    #     financial_period=df.iloc[0]["period"],
+    #     comments=comments,
+    #     ax_revenue=ax_revenue,
+    #     ax_eps=ax_eps,
+    #     ax_ptpm=ax_ptpm,
+    #     ax_ranges=ax_ranges,
+    # )
+    financial_period = df.iloc[0]["period"]
+    fig = make_plots(
+        df,
         ticker=ticker,
+        current_price=current_price,
+        revenue_target=revenue_target,
+        ptpm_target=ptpm_target,
+        eps_target=eps_target,
+        buy=[buy_lower, buy_upper],
+        hold=[hold_lower, hold_upper],
+        sell=[sell_lower,sell_upper],
+        make_multipanel=True,
         author=author,
         decision=decision,
-        financial_period=df.iloc[0]["period"],
+        financial_period=financial_period,
         comments=comments,
-        ax_revenue=ax_revenue,
-        ax_eps=ax_eps,
-        ax_ptpm=ax_ptpm,
-        ax_ranges=ax_ranges,
     )
+    pdf_buffer = BytesIO()
+    fig.savefig(pdf_buffer, format="pdf")
 
     st.download_button(
-        "Download report", report_buffer, "StockReport.pptx", "pptx", type="primary"
+        "Download report", pdf_buffer, f"Stock Report {ticker} {financial_period}.pdf", ".pdf", type="primary"
     )
